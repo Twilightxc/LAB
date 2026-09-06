@@ -1,0 +1,137 @@
+ThingsBoard IoT Platform
+========================
+
+แผนการจัดเวลา 100 นาที (Session Breakdown)
+พร้อมรายละเอียดเนื้อหาเฉพาะส่วนของ ThingsBoard สำหรับการสอนแบบเข้มข้น มีโครงสร้างดังนี้
+
+
+======================================================================
+ตารางกิจกรรม
+======================================================================
+
+----------------------------------------------------------------------
+00:00 - 15:00 (15 นาที) | Architecture & Data Modeling
+----------------------------------------------------------------------
+  • บรรยายบทบาทของ ThingsBoard ในฐานะ Headless Backend (BaaS)
+  • ความแตกต่างของ Telemetry (Time-series) และ Attributes (Server/Shared/Client)
+  • หลักการทำงานของ Two-way RPC และการทำ Multi-tenant / RBAC
+
+----------------------------------------------------------------------
+15:00 - 30:00 (15 นาที) | ESP32 Firmware Launch (PlatformIO)
+----------------------------------------------------------------------
+  • ผู้เรียนโคลนโค้ดจำลองจาก GitHub แล้วเปิดด้วย PlatformIO
+  • รันเฟิร์มแวร์ส่ง Telemetry จำลองเข้า ThingsBoard ผ่าน MQTT Topic  v1/devices/me/telemetry
+  • ตรวจสอบข้อมูลเข้าในหน้า Device Details บน ThingsBoard
+
+----------------------------------------------------------------------
+30:00 - 55:00 (25 นาที) | AI Loop: WebSocket Engine Integration
+----------------------------------------------------------------------
+  • ป้อน Specification ให้ AI ช่วยสร้าง Hook สำหรับต่อ  /api/ws/plugins/telemetry
+  • ส่งคำสั่ง Subscription แบบรวมท่อ (tsSubCmds + alarmDataCmds)
+  • นำข้อมูล Telemetry สดมาแสดงผลบน Custom Dashboard Component
+
+----------------------------------------------------------------------
+55:00 - 75:00 (20 นาที) | Verification Challenge (จับผิด AI & Security Audit)
+----------------------------------------------------------------------
+  • ทดสอบความทนทานของโค้ดที่ AI เจน: จำลองเน็ตหลุดเพื่อตรวจจับ Exponential Backoff Reconnect
+  • ตรวจสอบโค้ด Cleanup เพื่อป้องกัน WebSocket Memory Leak บนเบราว์เซอร์
+  • ตรวจสอบวงจรชีวิตของ Token และการดักจับข้อผิดพลาด 401 Unauthorized / 403 Forbidden
+
+----------------------------------------------------------------------
+75:00 - 90:00 (15 นาที) | Two-way RPC & Alarm Lifecycle
+----------------------------------------------------------------------
+  • ใช้ AI ช่วยเขียนปุ่มสวิตช์ส่งคำสั่ง REST RPC ไปยัง  /api/plugins/telemetry/DEVICE/{id}/rpc/oneway
+  • ฮาร์ดแวร์จำลองรับคำสั่งแล้วเปลี่ยนสถานะ
+  • จำลองค่าผิดปกติให้เกิน Threshold เพื่อตรวจดู ThingsBoard Rule Engine ทริกเกอร์ Alarm ส่งมาที่หน้าเว็บ
+
+----------------------------------------------------------------------
+90:00 - 100:00 (10 นาที) | Debrief & System Architecture Synthesis
+----------------------------------------------------------------------
+  • สรุปท่อส่งข้อมูล (Data Pipeline) ตั้งแต่ฮาร์ดแวร์สู่แดชบอร์ด
+  • ชี้ให้เห็นบทบาทการเป็น AI Loop Engineer ในการคุมสเปกระบบ
+  • สรุปประเด็นสำคัญและเปิดช่วงถาม-ตอบ (Q&A)
+
+
+======================================================================
+รายละเอียดเนื้อหาทางเทคนิคของ ThingsBoard ที่ใช้สอนในคาบ
+======================================================================
+
+
+----------------------------------------------------------------------
+1. Data Modeling & Communication Protocol
+----------------------------------------------------------------------
+
+  MQTT Telemetry:
+    ส่งข้อมูล Time-series ขึ้นหัวข้อ  v1/devices/me/telemetry  ในรูปแบบ JSON:
+
+      {"temperature": 28.5, "vibration": 1.12}
+
+  Attribute Scopes:
+
+    - Client-side Attribute   : ฮาร์ดแวร์ส่งรายงานสถานะ (เช่น เฟิร์มแวร์เวอร์ชัน)
+    - Shared Attribute        : ส่งค่าคอนฟิก (เช่น sampleRate) จากเว็บลงฮาร์ดแวร์
+    - Server-side Attribute   : เก็บค่าเกณฑ์การแจ้งเตือน (threshold) ไว้บนเซิร์ฟเวอร์โดยอุปกรณ์มองไม่เห็น
+
+
+----------------------------------------------------------------------
+2. Multiplexed WebSocket API  (/api/ws/plugins/telemetry)
+----------------------------------------------------------------------
+
+  ใช้การเชื่อมต่อ WebSocket เพียงท่อเดียวเพื่อประหยัดทรัพยากร โดยส่ง Subscription Command รวม:
+
+    {
+      "tsSubCmds": [
+        {
+          "cmdId": 1,
+          "entityType": "DEVICE",
+          "entityId": "<YOUR_DEVICE_ID>",
+          "keys": "temperature,vibration",
+          "timeWindow": 60000
+        }
+      ],
+      "alarmDataCmds": [
+        {
+          "cmdId": 2,
+          "query": {
+            "entityFilter": {
+              "type": "entityList",
+              "entityType": "DEVICE",
+              "entityList": ["<YOUR_DEVICE_ID>"]
+            },
+            "pageLink": {
+              "pageSize": 5,
+              "sortOrder": {
+                "key": {"type": "ALARM_FIELD", "key": "createdTime"},
+                "direction": "DESC"
+              }
+            },
+            "alarmStatuses": ["ACTIVE_UNACK", "ACTIVE_ACK"]
+          }
+        }
+      ]
+    }
+
+
+----------------------------------------------------------------------
+3. Two-Way Remote Procedure Call (RPC)
+----------------------------------------------------------------------
+
+  Endpoint : POST /api/plugins/telemetry/DEVICE/{deviceId}/rpc/oneway
+  Headers  : X-Authorization: Bearer <JWT_TOKEN>
+  Payload  : {"method": "setRelay", "params": true}
+
+  จุดที่ต้องเน้นให้นักศึกษาตรวจสอบ:
+    โค้ดฝั่งเว็บต้องมี Loading State และการดักจับ Timeout
+    เพื่อป้องกันปัญหาคำสั่งค้างเมื่ออุปกรณ์ออฟไลน์
+
+
+----------------------------------------------------------------------
+4. Rule Engine & Alarm Rules
+----------------------------------------------------------------------
+
+  • การกำหนดเงื่อนไขใน Rule Chain:
+    ดึงค่า threshold จาก Attribute มาเทียบกับ Telemetry ปัจจุบัน
+
+  • หากเงื่อนไขเป็นจริง ระบบจะเข้าโหนด Create Alarm
+    กำหนดระดับความรุนแรงเป็น CRITICAL
+    และส่งข้อมูล Real-time Event ไปยังท่อ WebSocket ของหน้าเว็บทันที
