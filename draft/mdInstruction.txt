@@ -1,0 +1,66 @@
+---
+
+## แนวทางปฏิบัติที่ดีที่สุดของ Anthropic สำหรับไฟล์ .md
+
+ตามแนวทางปฏิบัติที่ดีที่สุดของ Anthropic (ทั้งในคู่มือ Prompt Engineering, การจัดเตรียม Context สำหรับ Claude Projects และไฟล์ `CLAUDE.md` สำหรับการเขียนโค้ด) ไฟล์ `.md` ควรมีองค์ประกอบหลักดังนี้:
+
+### 1. บทบาทและเป้าหมายหลัก (Role & Objective)
+
+- ระบุชัดเจนว่าโมเดลต้องสวมบทบาทอะไร (เช่น Senior Go Developer, Data Analyst)
+- สรุปเป้าหมายสูงสุดของงานหรือโปรเจกต์ใน 1–2 ประโยค
+
+### 2. บริบทและสถาปัตยกรรม (Context & Project Overview)
+
+- อธิบายโครงสร้างโปรเจกต์ โฟลเดอร์สำคัญ และความสัมพันธ์ของแต่ละส่วน
+- ระบุ Tech Stack, เครื่องมือ, เวอร์ชันของภาษา/เฟรมเวิร์กที่ใช้งาน
+- คำสั่งพื้นฐานที่ใช้บ่อย (เช่น การ Build, Run, Test, Deploy)
+
+### 3. คำสั่งและกฎเกณฑ์เชิงโครงสร้าง (Structured Instructions & Rules)
+
+- Anthropic แนะนำให้ใช้ Markdown ร่วมกับ XML Tags (เช่น `<instructions>`, `<rules>`, `<context>`) เพื่อแยกคำสั่งออกจากข้อมูลให้ชัดเจน
+- ลำดับขั้นตอนการคิดหรือขั้นตอนการทำงานเป็นข้อ ๆ อย่างชัดเจน ไม่กำกวม
+
+### 4. ข้อจำกัดและสิ่งที่ห้ามทำ (Constraints & Guardrails)
+
+- ระบุขอบเขตงานอย่างแม่นยำ (อะไรที่อยู่ในขอบเขต และอะไรที่อยู่นอกเหนือขอบเขต)
+- กฎเชิงลบ (Negative constraints) เช่น ห้ามแก้ไขไฟล์คอนฟิก, ห้ามใช้ไลบรารีภายนอกนอกเหนือจากที่กำหนด
+
+### 5. ตัวอย่างผลลัพธ์ (Few-Shot Examples)
+
+- ใส่ตัวอย่าง Input/Output ที่ดี ครอบคลุมทั้งกรณีปกติ (Happy path) และกรณีเกิดข้อผิดพลาด (Edge cases) ภายใต้แท็ก `<example>`
+
+### 6. รูปแบบผลลัพธ์ที่ต้องการ (Output Format)
+
+- กำหนดโครงสร้างคำตอบที่ต้องการอย่างชัดเจน (เช่น JSON Schema, ตาราง Markdown หรือโค้ดล้วนโดยไม่ต้องมีคำอธิบายส่วนหัว)
+
+### ตัวอย่างโครงสร้างไฟล์ .md สไตล์ Anthropic
+
+```markdown
+# Project Context & Guidelines
+
+<context>
+โปรเจกต์นี้คือ REST API พัฒนาด้วย FastAPI + PostgreSQL
+โครงสร้างหลักอยู่ในโฟลเดอร์ /src โดยแยก Controller และ Service ชัดเจน
+</context>
+
+<instructions>
+1. วิเคราะห์โค้ดตามแนวทาง Clean Architecture
+2. เขียนโค้ดที่รองรับ Type Hinting ครบถ้วน
+3. จัดการ Error ด้วย Custom Exception เสมอ
+</instructions>
+
+<rules>
+- ห้ามเขียน Raw SQL ให้ใช้ SQLAlchemy ORM เท่านั้น
+- ทุกฟังก์ชันต้องมี Docstring แบบ Google Style
+</rules>
+
+<examples>
+<example>
+Input: ฟังก์ชันคำนวณภาษี
+Output:
+def calculate_tax(amount: float) -> float:
+    """Calculates standard tax rate."""
+    return amount * 0.07
+</example>
+</examples>
+```

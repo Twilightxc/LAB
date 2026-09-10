@@ -1,0 +1,52 @@
+C:\LAB\loopEngineering\L1\1requirment.md
+requirment-and-structure
+goal build minimal and modern responsive demo dashboard with HTML, CSS & backend API (using ThingsBoard REST API & WebSocket)
+
+HTML
+-page login have input username and password and button "Login to Dashboard" 
+
+-page dashboard have only one button "Logout" and then go to login
+ -dashboard have telemetry graph and value card show telemetry data real-time from ThingsBoard 
+
+
+CSS 
+  -control by css variables only
+  -style minimal and modern and mobile friendly and responsive
+  -split css file for each page HTML & dashboard
+  -each css file have @import common.css
+  -common.css is global css variables and base style
+
+JavaScript module use fetch api not axios 
+  POST /login use base64(username:password) 
+  POST /oauth2/token use refreshToken
+  GET /customer/credentials use accessToken
+  GET /device/credentials use accessToken
+  WebSocket real-time telemetry data
+
+FLOW
+-page login
+    -if login success go to dashboard
+    -if login fail show error message
+    -use REST API to login get token & refresh token customer User credentials
+    -use REST API to get customer id from customer User credentials
+    -use REST API to get device id and access token from customer id
+-page dashboard
+  -use websocket to subscribe to telemetry data from ThingsBoard
+  -use REST API to post device rpc commands to ThingsBoard
+  -logout success go to login
+----------------------------------------------------------------------
+
+C:\LAB\loopEngineering\L1\2builder.md
+loop-agent-build 
+ Goal -> Context -> Action -> Check -> Fix -> Repeat -> Review
+ #goal
+ -build code base on DECISION.md and TASK.md and SESSION.md
+
+read 
+ -C:\LAB\loopEngineering\Role.md
+ -C:\LAB\loopEngineering\L1\1requirment.md
+
+write update to
+ -C:\LAB\loopEngineering\DECISION.md
+ -C:\LAB\loopEngineering\TASK.md
+ -C:\LAB\loopEngineering\SESSION.md
