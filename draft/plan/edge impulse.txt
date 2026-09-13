@@ -1,0 +1,413 @@
+---
+
+### แผนการจัดเวลา 100 นาที (Session Breakdown: สัปดาห์ที่ 3)
+
+* **00:00 - 15:00 (15 นาที) | Edge AI Fundamentals & Impulse Architecture**
+* สรุปแก่น TinyML: ทำไมต้องรันบน Edge Node (ตัด Latency, ประหยัด Bandwidth ของ ThingsBoard, ทำงานได้แม้เน็ตหลุด)
+* โครงสร้างของ Impulse Design: Input Data Block $\to$ Processing Block (DSP) $\to$ Learning Block $\to$ Output
+
+
+* ความแตกต่างของ DSP: **Spectral Analysis** (FFT สำหรับการสั่นสะเทือน/ความถี่) เทียบกับ **Flatten** (สถิติพื้นฐานสำหรับข้อมูลช้า)
+
+
+
+
+* **15:00 - 35:00 (20 นาที) | Studio Workflow & Model Training (Coffee Machine / Vibration)**
+* อัปโหลด/โคลนชุดข้อมูลการสั่นสะเทือน (เช่น *Coffee machine stages* หรือ *Vibration/Motion*) ผ่าน **CSV Wizard**
+
+* กำหนด Time-series Windowing (Window size: 2000–5000 ms, Window increase: 250–500 ms)
+
+
+* สร้าง Feature ผ่านบล็อก **Spectral Analysis** ตรวจสอบกลุ่มข้อมูลบน **Feature Explorer**
+
+* เทรนโมเดล **Classification (Keras)** ควบคู่กับ **Anomaly Detection (K-Means)** เพื่อดักจับความผิดปกติที่อยู่นอกกลุ่มข้อมูลฝึกสอน
+
+
+* สำรวจผลลัพธ์บน **EON Tuner** ตรวจดู On-device Performance (Inference Latency, RAM, Flash Usage)
+
+
+
+
+* **35:00 - 55:00 (20 นาที) | Firmware Integration (Export & Static Replay Buffer)**
+* ไปที่หน้า Deployment เลือกดาวน์โหลดเป็น **Arduino library (.zip)**
+
+* นำไฟล์ `.zip` ไปวางในโฟลเดอร์ `lib/` ของ PlatformIO ตัวเดิมจากสัปดาห์ที่ 2 และตั้งค่า `platformio.ini`
+
+* คัดลอกค่าตัวเลขจำลองจากหน้า DSP บล็อก (**"Copy Raw features"**) มาทำเป็น Static Replay Buffer 
+สำหรับแก้ปัญหา Wokwi Simulator ที่ไม่สามารถเขย่าจำลองการสั่นสะเทือนจริงได้
+
+
+* เรียกฟังก์ชัน `run_classifier()` ทำการ Inference ภายใน ESP32-S3 และแปลงผลลัพธ์ส่งเป็น Telemetry JSON ไปยัง ThingsBoard
+
+
+
+
+* **55:00 - 75:00 (20 นาที) | Loop Engineering: Web AI Card & Logic Audit**
+* สั่ง AI Agent (ChatGPT/Claude) ช่วยต่อเติมไฟล์ `index.html` เดิมจากสัปดาห์ที่ 1
+* สร้างการ์ดแสดงผล **AI Diagnostics Card**: แสดงสถานะ (`NORMAL`, `WARNING`, `FAULT`), แถบ Anomaly Score Bar และค่า Confidence
+* **Verification Challenge (จับผิด AI):** ตรวจสอบว่าโค้ดที่ AI สร้างมีเงื่อนไขดักจับค่า `NaN`, 
+ป้องกันการแครชเมื่อค่า `anomaly` เป็นค่าว่าง หรือจัดการเปลี่ยนสีสถานะตามเกณฑ์ Threshold ถูกต้องหรือไม่
+
+
+* **75:00 - 90:00 (15 นาที) | Closed-Loop MLOps Simulation**
+* จำลองสถานการณ์เกิดข้อผิดพลาด (เช่น False Positive บนแดชบอร์ด)
+* สั่ง AI เพิ่มปุ่ม **"Flag for Retrain"** บนหน้าเว็บ Vanilla JS
+* กดปุ่มเพื่อส่ง Attribute หรือ RPC กลับไปยังระบบเพื่อบันทึกประวัติสัญญาณ พร้อมอธิบายแนวคิดการส่งข้อมูลกลับเข้า Data Pipeline สำหรับ Retrain โมเดล
+
+
+
+
+* **90:00 - 100:00 (10 นาที) | Debrief & End-to-End System Synthesis**
+* สรุปการเชื่อมโยงระบบ 3 สัปดาห์: MPU-6050 Signal $\to$ DSP $\to$ On-device ML $\to$ ThingsBoard MQTT $\to$ Native WebSocket UI $\to$ Retrain Loop
+* วิเคราะห์ข้อจำกัดของ MCU และการปรับแต่งโมเดลจริงหน้างาน
+* ถาม-ตอบ (Q&A) และสรุปแนวคิดบทบาทการเป็น Loop Engineer
+
+
+
+---
+
+### เนื้อหาทางเทคนิคและโค้ดตัวอย่างที่ใช้ในคาบ
+
+**1. การตั้งค่า PlatformIO (`platformio.ini`)**
+ชี้พาธไลบรารี Edge Impulse จากโฟลเดอร์ `lib/`:
+
+```ini
+[env:esp32-s3-devkitc-1]
+platform = espressif32
+board = esp32-s3-devkitc-1
+framework = arduino
+monitor_speed = 115200
+build_flags = 
+    -DARDUINO_USB_CDC_ON_BOOT=1
+
+lib_deps =
+    adafruit/Adafruit MPU6050@^2.2.4
+    adafruit/Adafruit Unified Sensor@^1.1.9
+    knolleary/PubSubClient@^2.8
+    bblanchon/ArduinoJson@^6.21.3
+    ./lib/edge_impulse_model.zip ; เปลี่ยนชื่อตามไฟล์ zip ที่ดาวน์โหลดมา
+
+```
+
+**2. โค้ด ESP32-S3 บน PlatformIO (`src/main.cpp`)**
+ปรับปรุงจากโค้ดสัปดาห์ที่ 2 ให้รัน Inference ร่วมกับ Static Replay Buffer:
+
+```cpp
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <your_project_inferencing.h> // เปลี่ยนตามชื่อโปรเจกต์ Edge Impulse[cite: 3]
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+const char* mqtt_server = "demo.thingsboard.io";
+const char* access_token = "YOUR_DEVICE_ACCESS_TOKEN";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Static Buffer จำลองสัญญาณผิดปกติ (คัดลอกมาจากปุ่ม Copy Raw Features ใน Edge Impulse)[cite: 3, 5]
+static const float test_vibration_features[] = {
+    -0.12, -6.20, 7.90, -0.13, -6.19, 7.91, -0.14, -6.20, 7.92
+    // ค่าจำลองจนครบขนาด Frame Size ของโมเดล[cite: 2]
+};
+
+// Callback สำหรับดึงข้อมูลเข้าสู่ Signal Wrapper ของ Edge Impulse
+int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
+    memcpy(out_ptr, test_vibration_features + offset, length * sizeof(float));
+    return 0;
+}
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+    Serial.println("\nWiFi Connected");
+    client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+    if (!client.connected()) {
+        while (!client.connect("ESP32S3_AI_Node", access_token, NULL)) { delay(2000); }
+    }
+    client.loop();
+
+    static unsigned long lastInference = 0;
+    if (millis() - lastInference > 3000) {
+        lastInference = millis();
+
+        // 1. จัดเตรียม Signal Wrapper
+        signal_t signal;
+        signal.total_length = EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE;
+        signal.get_data = &raw_feature_get_data;
+
+        // 2. รัน Inference ภายในตัวชิป ESP32-S3
+        ei_impulse_result_t result = { 0 };
+        EI_IMPULSE_ERROR r = run_classifier(&signal, &result, false);
+        if (r != EI_IMPULSE_OK) {
+            Serial.printf("ERR: Failed to run classifier (%d)\n", r);
+            return;
+        }
+
+        // 3. วิเคราะห์ผลและแพ็ก JSON ส่ง ThingsBoard
+        float anomaly_score = result.anomaly;
+        const char* ai_status = (anomaly_score > 0.5) ? "FAULT" : "NORMAL";
+
+        StaticJsonDocument<200> doc;
+        doc["anomaly_score"] = anomaly_score;
+        doc["ai_status"] = ai_status;
+        doc["confidence"] = result.classification[0].value; // ความน่าจะเป็นของคลาสแรก
+
+        char buffer[200];
+        serializeJson(doc, buffer);
+        client.publish("v1/devices/me/telemetry", buffer);
+        Serial.printf("Sent Inference: %s\n", buffer);
+    }
+}
+
+```
+
+**3. โค้ดขยายหน้าเว็บ Vanilla HTML/JS (`index.html`)**
+เพิ่มการ์ดสำหรับรับสถานะ AI ผ่าน WebSocket เดิม:
+
+```html
+<!-- แทรกต่อจาก Card เดิมของสัปดาห์ที่ 1 -->
+<div class="card" id="ai-card" style="border-left: 5px solid #3b82f6;">
+  <h3>Edge AI Inference Status</h3>
+  <div>สถานะระบบ: <strong id="ai-status" style="font-size: 1.5rem;">WAITING...</strong></div>
+  <div style="margin: 0.8rem 0;">
+    Anomaly Score: <span id="anomaly-value">0.00</span>
+    <div style="background: #334155; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px;">
+      <div id="anomaly-bar" style="background: #22c55e; height: 100%; width: 0%; transition: 0.3s;"></div>
+    </div>
+  </div>
+  <button onclick="flagRetrain()" style="background: #dc2626;">Flag for Retrain</button>
+</div>
+
+<script>
+  // ฟังก์ชันอัปเดต UI เมื่อ WebSocket ได้รับคีย์ anomaly_score และ ai_status
+  function updateAiUI(anomaly, status) {
+    // Audit Check: ดักจับค่าผิดปกติ
+    if (isNaN(anomaly) || anomaly === null || anomaly === undefined) return;
+
+    document.getElementById('anomaly-value').textContent = parseFloat(anomaly).toFixed(2);
+    const statusEl = document.getElementById('ai-status');
+    const barEl = document.getElementById('anomaly-bar');
+    const cardEl = document.getElementById('ai-card');
+
+    statusEl.textContent = status;
+    const percentage = Math.min(Math.max(anomaly * 100, 0), 100);
+    barEl.style.width = percentage + "%";
+
+    if (status === "FAULT" || anomaly > 0.5) {
+      statusEl.style.color = "#ef4444";
+      barEl.style.background = "#ef4444";
+      cardEl.style.borderLeftColor = "#ef4444";
+    } else {
+      statusEl.style.color = "#22c55e";
+      barEl.style.background = "#22c55e";
+      cardEl.style.borderLeftColor = "#22c55e";
+    }
+  }
+
+  function flagRetrain() {
+    alert("ส่งข้อมูลรอบนี้เข้า Queue สำหรับ Active Learning เรียบร้อย");
+  }
+</script>
+
+```
+
+---
+
+### Prompt Template สำหรับให้นักศึกษาใช้สั่ง AI (AI Loop Challenge)
+
+```text
+ทำหน้าที่เป็น Full-stack IoT Developer ช่วยแก้ไขไฟล์ index.html (Vanilla JS) เดิม:
+1. ปรับปรุง WebSocket Subscription Payload ให้เพิ่มคีย์ "anomaly_score", "ai_status", "confidence"
+2. เขียนฟังก์ชันอัปเดต UI แสดงผล Anomaly Bar โดยคำนวณความกว้างตามค่า anomaly_score (0.0 ถึง 1.0)
+3. กฎความปลอดภัย: ต้องตรวจสอบว่าหากค่า anomaly_score เป็น NaN, null หรือหลุดช่วง ให้คงสถานะเดิมและไม่ทำให้ DOM พัง
+4. หาก ai_status เป็น "FAULT" ให้เปลี่ยนสีพื้นหลังของการ์ดเป็นสีแดงอ่อนเพื่อแจ้งเตือน
+
+```
+
+---
+
+### รายการสิ่งที่ต้องเตรียมล่วงหน้า (Checklist)
+
+**ฝั่งผู้สอน:**
+
+* **Edge Impulse Template Project:** สร้างโปรเจกต์สาธารณะที่มีชุดข้อมูล (เช่น *Coffee machine stages (vibration)* หรือ Motion) 
+ที่เทรน Impulse บล็อก Spectral Analysis + Classification + Anomaly Detection ไว้เรียบร้อย สำหรับให้นักศึกษากด Export ได้ทันทีหากเทรนในห้องไม่ทัน
+
+
+* **Pre-built Arduino Library ZIP:** ไฟล์ ZIP สำรองของโมเดลที่คอมไพล์ผ่านแล้ว ป้องกันปัญหานักศึกษาดาวน์โหลดไฟล์ช้าหรือติดขัดเรื่องโควตาอินเทอร์เน็ต
+
+
+* **Text File ของ Raw Features:** เตรียมไฟล์ตัวอย่าง `features.txt` สำหรับให้นักศึกษาคัดลอกค่าอาร์เรย์ตัวเลขไปแปะลงในโค้ด C++
+
+
+
+**ฝั่งผู้เรียน:**
+
+* บัญชีใช้งาน **Edge Impulse Studio** (สมัครฟรี)
+
+
+* โปรเจกต์ PlatformIO บน VSCode ที่ทำงานต่อเนื่องมาจากสัปดาห์ที่ 2
+* ไฟล์ `index.html` (Vanilla JS) จากสัปดาห์ที่ 1 ที่พร้อมสำหรับการขยายฟังก์ชัน
+
+
+เนื้อหาบรรยายนี้ออกแบบมาสำหรับใช้สอน 15–20 นาทีแรกของสัปดาห์ที่ 3 เพื่อปูพื้นฐานแนวคิด 
+**TinyML, Impulse Architecture, On-device Optimization** และการเชื่อมโยงระบบเข้ากับ **ESP32-S3 / PlatformIO** ตามเนื้อหาเอกสารทางการ
+
+---
+
+### ภาพรวมการทำงาน (Impulse Architecture)
+
+```
+[ Raw Sensor Data ] 
+       │ (Windowing & Resampling)[cite: 1, 2]
+       ▼
+[ Processing Block (DSP) ] ──────► สกัด Features (ลดขนาดข้อมูล, O(n log n))[cite: 1, 3]
+       │
+       ▼
+[ Learning Block (ML/NN) ] ──────► จำแนก Class + ตรวจจับ Anomaly[cite: 1, 2]
+       │
+       ▼
+[ EON Compiler / Deployment ] ───► แปลงเป็น C++ / Arduino Library ลง ESP32-S3[cite: 1, 2, 3]
+
+```
+
+---
+
+### โมดูลที่ 1: ทำไมต้องรัน AI ที่ Edge? (Edge AI & TinyML Foundations)
+
+**แนวคิดหลัก:**
+
+* **Bandwidth & Database Load:** การส่งสัญญาณดิบจากเซ็นเซอร์ (เช่น $acc_X, acc_Y, acc_Z$ ที่ความถี่ 50–100 Hz) 
+ขึ้น ThingsBoard ตลอดเวลา ทำให้เปลืองแบนด์วิดท์และทำให้ฐานข้อมูลบวมอย่างรวดเร็ว
+* **Latency & Autonomy:** การส่งข้อมูลขึ้น Cloud เพื่อประมวลผลมีความหน่วง (Latency) และต้องพึ่งพาสัญญาณอินเทอร์เน็ตตลอดเวลา 
+หากเครือข่ายหลุด อุปกรณ์จะไม่สามารถตรวจจับความผิดปกติได้
+
+
+* **TinyML Solution:** ไมโครคอนโทรลเลอร์ใช้พลังงานต่ำมาก (ระดับมิลลิวัตต์หรือไมโครวัตต์) และราคาประหยัด 
+การบีบอัดโมเดล AI ให้รันบน MCU ได้โดยตรงทำให้ระบบตอบสนองได้แบบเรียลไทม์ ทำงานได้โดยไม่ต้องต่อเน็ต และส่งเฉพาะผลการทำนาย 
+(เช่น `ai_status`, `confidence`, `anomaly_score`) ขึ้นไปแสดงผลเท่านั้น
+
+
+
+> **สคริปต์คำพูดผู้สอน:**
+> *"สัปดาห์ที่แล้วเราส่งสัญญาณ MPU-6050 ขึ้น ThingsBoard ตรง ๆ ลองจินตนาการว่าถ้าเรามีเซ็นเซอร์ 1,000 ตัวในโรงงาน ยิงข้อมูล 50 Hz ตลอด 24 ชั่วโมง 
+เซิร์ฟเวอร์และระบบเครือข่ายจะรับภาระมหาศาล TinyML เปลี่ยนวิธีคิดใหม่ แทนที่เราจะส่ง 'ข้อมูลดิบ' ขึ้นไปคิดบน Cloud เราจะย้าย 'สมอง' ลงมาไว้ที่ตัวบอร์ด ESP32-S3 
+ให้บอร์ดตัดสินใจเอง แล้วส่งแค่ข้อความสั้น ๆ ว่า NORMAL หรือ FAULT ขึ้นแดชบอร์ด"*
+> 
+
+---
+
+### โมดูลที่ 2: โครงสร้างของ Impulse (Input $\to$ DSP $\to$ Learning)
+
+ในระบบของ Edge Impulse ไปป์ไลน์การประมวลผลจะเรียกว่า **Impulse** ซึ่งประกอบด้วย 3 บล็อกหลัก:
+
+**1. Input Data Block (Windowing):**
+
+* ทำการตัดแบ่งข้อมูล Time-series ออกเป็นหน้าต่างตามเวลา เช่น Window size 2000 ms และเลื่อนหน้าต่างทีละ Window increase 500 ms
+
+
+* สามารถทำ Downsampling หรือ Upsampling ข้อมูลได้โดยอัตโนมัติหากสัญญาณบันทึกมาด้วยความถี่ที่ต่างกัน
+
+
+
+**2. Processing Block (Digital Signal Processing - DSP):**
+
+* มีหน้าที่สกัดคุณลักษณะ (Feature Extraction) ก่อนส่งให้โมเดล AI เพื่อลดภาระการคำนวณ ตัวอย่างเช่น การใช้ FFT เพื่อดึงความถี่มีความซับซ้อนระดับ $O(n \log n)$ 
+ซึ่งประหยัดพลังงานกว่าการใช้ 1D Convolutional Neural Network ดิบ ๆ ที่ใช้ $O(n^2)$
+
+
+* **Spectral Analysis (Spectral Features):** สกัดความถี่ (Frequency), กำลังของสัญญาณ (Power) และกรองสัญญาณรบกวน 
+เหมาะสำหรับการเคลื่อนไหวหรือการสั่นสะเทือนของเครื่องจักร
+
+
+* **Flatten:** สกัดค่าทางสถิติพื้นฐาน เช่น Average, Min, Max, RMS, Standard Deviation เหมาะสำหรับข้อมูลที่เปลี่ยนแปลงช้า (Slow-moving data) 
+เช่น ก๊าซ อุณหภูมิ หรือความชื้น
+
+
+* **Feature Explorer:** หน้าจอแสดงผลแบบ 3 มิติ เพื่อดูการกระจายตัวของคลัสเตอร์ข้อมูล ช่วยให้ประเมินได้ทันทีว่าสัญญาณแต่ละคลาสแยกออกจากกันได้ชัดเจนหรือไม่ก่อนเริ่มเทรน
+
+
+
+**3. Learning Block:**
+
+* การใช้ **Classification (Keras/NN)** เพื่อจำแนกคลาสที่ระบุไว้ในข้อมูลฝึกสอน (เช่น `idle`, `grind`, `pump`)
+
+
+* การเพิ่ม **Anomaly Detection (K-Means Clustering):** สำหรับงานสั่นสะเทือน หากมีรูปแบบการสั่นใหม่ ๆ ที่ไม่เคยเทรนมาก่อน 
+บล็อกนี้จะคำนวณระยะห่างเพื่อตีค่าออกมาเป็น `anomaly_score` สำหรับแจ้งเตือนความผิดปกติ
+
+
+
+> **สคริปต์คำพูดผู้สอน:**
+> "หัวใจสำคัญของ Edge Impulse คือการเอาบล็อก DSP มาประกบหน้า Machine Learning เราไม่โยนข้อมูลดิบทั้งก้อนเข้า Neural Network 
+ให้บอร์ดคำนวณจนแฮงก์ แต่เราใช้คณิตศาสตร์ของ DSP กรองเอาเฉพาะข้อมูลสำคัญออกมาก่อน ทำให้โมเดลมีขนาดเล็กลงและรันบน MCU ได้จริง"
+> 
+> 
+
+---
+
+### โมดูลที่ 3: การเพิ่มประสิทธิภาพด้วย EON Compiler & EON Tuner
+
+**1. EON Compiler (กลไกการบีบอัดโมเดล):**
+
+* โดยปกติการรันโมเดลบนไมโครคอนโทรลเลอร์ด้วย TensorFlow Lite for Microcontrollers (TFLM) จะต้องมี Interpreter คอยแปลคำสั่ง ซึ่งกิน RAM และ Flash ROM
+
+
+* **EON Compiler** ทำการคอมไพล์โครงข่ายประสาทเทียมออกมาเป็น **ซอร์สโค้ด C++ โดยตรง** และตัด Interpreter ทิ้ง ทำให้ Linker ลบคำสั่งที่ไม่จำเป็นออกได้
+
+
+* **ผลลัพธ์เชิงตัวเลข:** ช่วยประหยัด RAM ได้ 25–55% และลดขนาด Flash ROM ได้สูงสุดประมาณ 35% โดยยังคงค่าความแม่นยำเทียบเท่า TFLM
+
+
+* *ข้อจำกัดทางเทคนิค:* โมเดลจะกลายเป็นส่วนหนึ่งของซอร์สโค้ดเฟิร์มแวร์ จึงปรับแก้โครงสร้างได้ยากขึ้นเมื่ออยู่ในหน้างาน (ต้องใช้วิธี OTA อัปเดตเฟิร์มแวร์ใหม่)
+
+
+
+**2. EON Tuner (AutoML for Edge):**
+
+* ทำหน้าที่ค้นหาคู่ชุดพารามิเตอร์ของ DSP และสถาปัตยกรรม Neural Network ที่เหมาะสมที่สุดกับข้อจำกัดของฮาร์ดแวร์
+
+
+* ผู้ใช้กำหนดเงื่อนไข: Target Device (เช่น ESP32 / Cortex-M), ขีดจำกัดเวลาการคำนวณ (Latency) และเพดาน RAM/ROM
+
+
+* ระบบจะทำการทดลองและพล็อตกราฟเปรียบเทียบระหว่างความแม่นยำ (Accuracy) กับปริมาณการใช้ทรัพยากร เพื่อให้ผู้พัฒนาเลือกจุดสมดุล (Trade-off) ที่ดีที่สุด
+
+
+
+---
+
+### โมดูลที่ 4: การนำไปใช้งานจริงบน PlatformIO และ Wokwi (Static Buffer Testing)
+
+**แนวคิดการใช้งานจริง:**
+
+* เมื่อเทรนและทดสอบบน Studio เรียบร้อย จะทำการ Export ออกมาเป็น **Arduino library (.zip)** หรือ **C++ library**
+
+* โค้ดของ Edge Impulse มีโครงสร้างแบบ Standalone ไม่มี External Dependencies ซับซ้อน ทำให้คอมไพล์ผ่าน PlatformIO ได้ง่าย
+
+
+* **เทคนิค Static Replay Buffer:** เนื่องจาก Wokwi Simulator ไม่สามารถเขย่าสร้างแรงสั่นสะเทือนเชิงกายภาพได้ เราจะใช้ความสามารถของฟังก์ชัน `run_classifier()` 
+โดยดึงตัวอย่างสัญญาณดิบ (Raw Features) จาก Edge Impulse Studio มาจัดเก็บไว้ในหน่วยความจำของบอร์ด เพื่อทดสอบว่าฟังก์ชันคำนวณและประเมินผลได้สอดคล้องกับบน 
+Studio หรือไม่ ก่อนส่งผลลัพธ์ผ่าน MQTT ไปยัง ThingsBoard
+
+
+
+---
+
+### คำถามนำอภิปรายก่อนเริ่มฝึกปฏิบัติ
+
+1. *"ทำไมข้อมูลการสั่นสะเทือนของ MPU-6050 จึงต้องใช้บล็อก Spectral Analysis แต่ข้อมูลอุณหภูมิ/ความชื้นของ DHT22 ถึงควรใช้บล็อก Flatten?"*
+
+(แนวทางตอบ: การสั่นสะเทือนมีมิติของความถี่และคาบเวลาซ้ำ ๆ ซึ่ง Fourier Transform สกัดค่าได้ดี ส่วนอุณหภูมิเป็นสัญญาณที่เปลี่ยนแปลงช้า 
+ข้อมูลเชิงสถิติอย่าง Min, Max, Average จึงเพียงพอและประหยัดกว่า)
+
+
+2. *"หากบอร์ด ESP32-S3 ของเรามี RAM เหลือจำกัดมาก แต่ต้องการให้โมเดลประมวลผลได้แม่นยำขึ้น เราสามารถใช้ฟีเจอร์ใดของ Edge Impulse ช่วยประเมินผลกระทบก่อนคอมไพล์จริง?"*
+
+(แนวทางตอบ: ใช้ EON Tuner และหน้าต่าง On-device performance เพื่อดูค่าประมาณการใช้งาน RAM, Flash และ Inference Latency ล่วงหน้า)

@@ -1,0 +1,237 @@
+---
+
+### แผนการจัดเวลา 100 นาที (ฉบับปรับปรุงเป็น Vanilla HTML/JS)
+
+* **00:00 - 15:00 (15 นาที) | Architecture & BaaS Data Modeling**
+* บรรยายบทบาทของ ThingsBoard ในฐานะ Headless IoT Backend
+* ความแตกต่างของ **Telemetry** (ข้อมูล Time-series) และ **Attributes** (Client/Shared/Server)
+* โครงสร้างการเชื่อมต่อ: ESP32-S3 ส่งผ่าน MQTT และหน้าเว็บรับข้อมูลสดผ่าน Native WebSocket API (`/api/ws/plugins/telemetry`)
+
+
+* **15:00 - 35:00 (20 นาที) | ESP32-S3 Firmware Launch on Wokwi**
+* รัน ESP32-S3 บน Wokwi Simulator ผ่าน VSCode PlatformIO Extension
+* เฟิร์มแวร์เชื่อมต่อ Wi-Fi และส่งค่า Mock Telemetry ขึ้น ThingsBoard ผ่าน MQTT Topic `v1/devices/me/telemetry`
+* ตรวจสอบความถูกต้องของข้อมูลที่ส่งเข้าในหน้า Dashboard ของ ThingsBoard
+
+
+* **35:00 - 60:00 (25 นาที) | Loop Engineering: AI-Assisted Vanilla Dashboard**
+* แจกไฟล์โครงร่าง HTML เปล่าที่มีเฉพาะโครงสร้างและ CSS พื้นฐาน
+* **Loop Prompting:** สั่ง AI Agent (ChatGPT/Claude) ให้เขียนโค้ด Vanilla JavaScript เชื่อมต่อ ThingsBoard WebSocket ด้วย Native `new WebSocket(...)`
+* อัปเดตตัวเลขและสถานะการทำงานบนหน้าเว็บแบบเรียลไทม์เมื่อได้รับข้อความ JSON
+
+
+* **60:00 - 80:00 (20 นาที) | Verification Challenge (จับผิด AI & Logic Audit)**
+* **Audit 1 (Reconnection Flow):** ให้ผู้เรียนตรวจสอบว่าหากกด Disconnect หรือเน็ตหลุด AI ได้สร้างกลไกหน่วงเวลาเพื่อ Reconnect อัตโนมัติ (`setTimeout`) หรือไม่
+* **Audit 2 (Data Parsing & Sanitization):** ตรวจสอบว่ามีบล็อก `try...catch` สำหรับ `JSON.parse()` หรือไม่ และดักจับกรณีข้อมูลส่งมาเป็นค่า `null` อย่างไร
+* **Audit 3 (Event Cleanup):** ตรวจสอบว่าปุ่ม Disconnect มีการสั่ง `socket.close()` อย่างถูกต้องหรือไม่
+
+
+* **80:00 - 90:00 (10 นาที) | Two-Way Control (One-way RPC ผ่าน `fetch`)**
+* ให้ AI เขียนปุ่มกดบนหน้าเว็บเพื่อยิง Native `fetch()` (HTTP POST) ส่งคำสั่ง RPC ไปที่ ThingsBoard
+* สังเกตการตอบสนองบน Serial Monitor ของบอร์ด ESP32-S3 ใน Wokwi
+
+
+* **90:00 - 100:00 (10 นาที) | Debrief & System Architecture Synthesis**
+* สรุปภาพรวมโฟลว์: Wokwi $\to$ MQTT $\to$ ThingsBoard $\to$ Native WebSocket $\to$ Browser DOM
+* ปูทางสู่สัปดาห์ที่ 2: การนำสัญญาณ 3 แกนจาก MPU-6050 มาส่งผ่านท่อเดิมนี้
+
+---
+
+### Prompt Template สำหรับให้นักศึกษาใช้สั่ง AI (AI Loop)
+
+```text
+ทำหน้าที่เป็น Frontend Developer ช่วยเขียนฟังก์ชัน Vanilla JavaScript (ไม่ใช้ไลบรารีภายนอก)
+เพื่อดักจับและจัดการ WebSocket ของ ThingsBoard เพิ่มเติมจากโค้ดเดิม:
+1. เขียนระบบ Exponential Backoff Reconnect: เมื่อ socket หลุด ให้หน่วงเวลาและพยายามเชื่อมต่อใหม่แบบทวีคูณ (1s, 2s, 4s, สูงสุดไม่เกิน 30s)
+2. เขียนฟังก์ชันล้าง Timer ของ Reconnect ทั้งหมดเมื่อผู้ใช้งานกดปุ่ม "ตัดการเชื่อมต่อ" ด้วยตนเอง เพื่อป้องกัน Memory Leak
+3. ตรวจสอบข้อมูล JSON ที่ส่งกลับมา หากค่าตัวเลขเป็น NaN หรือ undefined ให้แสดงข้อความแจ้งเตือนสีแดงแทนการแครช
+
+```
+
+---
+
+### สิ่งที่ต้องเตรียมล่วงหน้า (Checklist)
+
+**ฝั่งผู้สอน:**
+
+* **ThingsBoard Credentials:**
+* เตรียมเซิร์ฟเวอร์ ThingsBoard ให้พร้อม
+* สร้าง Device ไว้ล่วงหน้า และออก **Device Access Token** สำหรับใส่ในโค้ด ESP32-S3 บน Wokwi
+* เตรียม **User JWT Token** (หรือสร้าง User ทั่วไปแจกผู้เรียน) เพื่อให้นักศึกษานำไปเชื่อม WebSocket และ RPC
+
+
+* **Template แจกผู้เรียน:**
+* โฟลเดอร์โปรเจกต์ PlatformIO สำหรับ Wokwi (มี `platformio.ini`, `diagram.json`, `src/main.cpp`)
+* ไฟล์ `index.html` โครงเปล่า (มีโครง CSS เตรียมไว้ ให้ผู้เรียนเขียนส่วน JS)
+
+
+
+**ฝั่งผู้เรียน:**
+
+* คอมพิวเตอร์ที่ติดตั้ง **VSCode** พร้อม Extension:
+1. **PlatformIO IDE**
+2. **Wokwi Simulator**
+
+
+* เว็บบราวเซอร์มาตรฐาน (Chrome, Edge หรือ Firefox)
+* เข้าถึง AI Chatbot (ChatGPT, Claude หรือ Gemini) พร้อมใช้งาน
+
+เนื้อหาบรรยายสำหรับสัปดาห์ที่ 1 ออกแบบมาสำหรับใช้พูดบรรยาย 15–20 นาทีแรก 
+โดยเน้นแนวคิดเชิงสถาปัตยกรรม (Architecture), โมเดลข้อมูล (Data Modeling) และการควบคุมคุณภาพโค้ด AI (Loop Engineering) พร้อมสคริปต์คำพูดผู้สอน
+
+---
+
+### โครงสร้างภาพรวมสถาปัตยกรรม (System Architecture)
+
+```
++--------------------------+       MQTT (1883)       +------------------------------------+
+|   ESP32-S3 (Wokwi)       | ----------------------> |        ThingsBoard BaaS            |
+|  - PubSubClient          |   Telemetry / RPC       |  - Core Ingestion Engine           |
+|  - Mock Data Generator   | <---------------------- |  - Rule Engine (Alarms)            |
++--------------------------+                         |  - PostgreSQL / Cassandra (TS DB)  |
+                                                     +------------------------------------+
+                                                                        |
+                                                     WebSocket Stream   | HTTP POST (RPC)
+                                                     /api/ws/...        | /api/plugins/...
+                                                                        v
+                                                     +------------------------------------+
+                                                     |    Vanilla Web Dashboard (DOM)     |
+                                                     |  - Native WebSocket API            |
+                                                     |  - Exponential Backoff Handler     |
+                                                     |  - Audit & Verification Logic      |
+                                                     +------------------------------------+
+
+```
+
+---
+
+### โมดูลที่ 1: บทบาทของ ThingsBoard ในฐานะ Headless Backend (BaaS)
+
+**แนวคิดหลัก:**
+
+* **Headless IoT BaaS:** ThingsBoard ทำหน้าที่เป็นแพลตฟอร์มจัดการอุปกรณ์ (IoT Device Management) และจัดการข้อมูลหลังบ้าน (Backend-as-a-Service) 
+โดยไม่ต้องสร้าง Server, Database หรือ MQTT Broker ขึ้นมาเองตั้งแต่ศูนย์
+
+
+* **Device Identity & Authentication:** อุปกรณ์ทุกตัวบนระบบจะถูกผูกเข้ากับ `Device Profile` และระบุตัวตนผ่าน **Device Access Token** 
+เพื่อความปลอดภัยในการสื่อสารข้อมูล
+
+
+* **Rule Engine Processing:** มีตัวประมวลผลกฎหลังบ้าน ทำหน้าที่กรองข้อมูล ตรวจสอบเงื่อนไขแจ้งเตือน (Alarm Rules) และกระจายข้อความแบบ Event-driven โดยอัตโนมัติ
+
+> **สคริปต์คำพูดผู้สอน:**
+> *"ในโลกการสร้างระบบ IoT ระดับอุตสาหกรรม เราไม่นิยมเขียนเซิร์ฟเวอร์รับ socket หรือตั้งฐานข้อมูล time-series เองทั้งหมด เพราะมีต้นทุนในการบำรุงรักษาสูง ThingsBoard 
+เข้ามาทำหน้าที่เป็น BaaS หรือตัวจัดการหลังบ้านทั้งหมด ตั้งแต่รับการเชื่อมต่อจากอุปกรณ์ จัดเก็บประวัติข้อมูล ไปจนถึงส่งต่อไปยังแดชบอร์ด สิ่งที่เราต้องทำคือเข้าใจ 'ท่อส่งสัญญาณ' และ 
+'รูปแบบข้อมูล' ให้ถูกต้องเท่านั้น"*
+
+---
+
+### โมดูลที่ 2: Data Modeling — Telemetry vs. Attributes
+
+สิ่งที่วิศวกร IoT มักสับสนคือความต่างระหว่างข้อมูลสองประเภทนี้:
+
+| มิติการเปรียบเทียบ | Time-series Telemetry | Attributes |
+| --- | --- | --- |
+| **ลักษณะข้อมูล** | ข้อมูลที่เปลี่ยนแปลงตามเวลาและมี timestamp กำกับ
+
+ | ข้อมูลเชิงสถานะ หรือคุณสมบัติประจำตัวของอุปกรณ์ (Key-Value) |
+| **การจัดเก็บ** | บันทึกลง Time-series Storage เก็บทุกค่าที่ส่งเข้ามา
+
+ | เก็บเฉพาะ **'ค่าล่าสุดเพียงค่าเดียว'** (ทับค่าเดิมเสมอ) |
+| **ตัวอย่างการใช้งาน** | อุณหภูมิ, การสั่นสะเทือน, ระดับพลังงาน
+
+ | เฟิร์มแวร์เวอร์ชัน, หมายเลขซีเรียล, ค่าเกณฑ์แจ้งเตือน
+
+ |
+| **Topic MQTT ขาเข้า** | `v1/devices/me/telemetry` | `v1/devices/me/attributes` |
+
+**Attribute Scopes (ขอบเขตของ Attributes):**
+
+* **Client-side Attribute:** ข้อมูลที่ฮาร์ดแวร์รายงานขึ้นฝั่งเดียว (เช่น IP Address, MAC Address, เวอร์ชันเฟิร์มแวร์)
+
+
+* **Shared Attribute:** ข้อมูลที่ควบคุมจากแดชบอร์ดเพื่อส่งต่อไปยังอุปกรณ์ (เช่น `samplingRate: 100`, สวิตช์ปิด/เปิดการทำงาน)
+* **Server-side Attribute:** ข้อมูลคอนฟิกภายในที่อุปกรณ์มองไม่เห็น ใช้เฉพาะหลังบ้าน (เช่น `max_temperature_limit: 85.0`)
+
+> **สคริปต์คำพูดผู้สอน:**
+> *"อย่าส่งทุกอย่างเป็น Telemetry ถ้าเราส่งหมายเลขเครื่องหรือเฟิร์มแวร์เวอร์ชันเป็น Telemetry ทุก 1 วินาที ฐานข้อมูลจะบวมโดยเปล่าประโยชน์ 
+ข้อมูลอะไรที่เปลี่ยนตามเวลาให้ใช้ Telemetry ข้อมูลอะไรที่เป็นสถานะคงที่หรือค่าตั้งค่า ให้ใช้ Attributes"*
+> 
+
+---
+
+### โมดูลที่ 3: สถาปัตยกรรมการสื่อสารสองทิศทาง (WebSocket & RPC)
+
+**1. Multiplexed WebSocket API (`/api/ws/plugins/telemetry`):**
+
+* ใช้ WebSocket ท่อเดียวเชื่อมโยงระหว่างเบราว์เซอร์กับเซิร์ฟเวอร์ เพื่อลดภาระ Connection Overhead
+* หน้าเว็บส่งข้อความ **Subscription Command (`tsSubCmds`)** ระบุ Device ID และคีย์ที่ต้องการฟัง:
+```json
+{
+  "tsSubCmds": [
+    {
+      "cmdId": 1,
+      "entityType": "DEVICE",
+      "entityId": "2a7b3c40-xxxx-xxxx-xxxx",
+      "keys": "mock_val,system_status",
+      "timeWindow": 60000
+    }
+  ]
+}
+
+```
+
+
+* เมื่อ ESP32-S3 ยิงค่าใหม่เข้าสู่ ThingsBoard เซิร์ฟเวอร์จะกระจายข้อมูล (Push) เข้าท่อ WebSocket ของหน้าเว็บทันทีแบบ Real-time
+
+**2. Two-Way Remote Procedure Call (RPC):**
+
+* ใช้ควบคุมอุปกรณ์จากหน้าเว็บผ่าน HTTP POST ไปยัง:
+`/api/plugins/telemetry/DEVICE/{deviceId}/rpc/oneway`
+* ThingsBoard จะแปลงคำสั่งส่งต่อลงไปที่หัวข้อ MQTT `v1/devices/me/rpc/request/{requestId}` บนบอร์ด ESP32-S3
+
+
+* ฝั่งหน้าเว็บต้องตั้ง Timeout ดักจับเสมอ เผื่อกรณีอุปกรณ์ออฟไลน์
+
+---
+
+### โมดูลที่ 4: การวางตัวเป็น Loop Engineer (Prompting & Verification)
+
+**แนวคิด Loop Engineering:**
+
+ไม่ใช่เพียงการให้ AI เขียนโค้ดให้เสร็จ แต่คือการทำหน้าที่เป็น **"สถาปนิกและผู้ตรวจสอบ (Auditor)"**
+
+```
++--------------------+      Prompt with Spec      +--------------------+
+|   Loop Engineer    | -------------------------> |      AI Agent      |
+|  (User / Architect)| <------------------------- | (ChatGPT / Claude) |
++--------------------+        Raw JS Code         +--------------------+
+          |
+          v
+[ Resilience & Security Audit ]
+  1. มี Memory Leak (ล้าง Timer/Socket) หรือไม่?
+  2. มี Reconnect Loop ถี่เกินไปจนเซิร์ฟเวอร์บล็อกหรือไม่?
+  3. จัดการ Data Inconsistency (null, NaN) อย่างไร?
+
+```
+
+**3 กฎเหล็กในการตรวจสอบโค้ด AI ที่สร้างในคาบ:**
+
+* **Resource Leak:** ตรวจดูว่าในโค้ดมีคำสั่งสั่งปิดการเชื่อมต่อ (`socket.close()`) หรือล้าง Timer (`clearTimeout`) ก่อนสร้างการเชื่อมต่อใหม่หรือไม่
+* **Connection Flood:** หากเน็ตหลุด AI ส่วนใหญ่มักเขียนโค้ดยิง Reconnect รัว ๆ ในลูปทันที ซึ่งจะทำให้ติดบล็อก IP หรือเบราว์เซอร์ค้าง 
+ต้องสั่งให้ใช้ **Exponential Backoff** (เพิ่มระยะเวลาหน่วงทวีคูณ เช่น 1s, 2s, 4s...)
+* **Type Safety & Data Parsing:** โค้ดมีการใช้ `try...catch` ครอบ `JSON.parse()` หรือไม่ และมี fallback กรณีค่าที่อ่านได้เป็น `null` หรือไม่
+
+---
+
+### สรุปคำถามนำอภิปรายก่อนเริ่มปฏิบัติการ (5 นาทีสุดท้ายของบรรยาย)
+
+* *"ถ้าบอร์ดส่งสัญญาณความถี่ 100 Hz ขึ้น ThingsBoard ตรง ๆ ผ่าน MQTT จะเกิดอะไรขึ้นกับ Network Bandwidth และฐานข้อมูล?"*
+
+(แนวทางตอบ: เปลืองแบนด์วิดท์อย่างมหาศาล ซึ่งเป็นเหตุผลที่สัปดาห์ที่ 3 เราต้องย้ายสมอง AI มารันที่ Edge แทนการส่งข้อมูลดิบขึ้น Cloud)
+
+
+* *"ทำไมหน้าเว็บถึงไม่ควรเชื่อมต่อตรงไปยัง MQTT Broker แต่เลือกใช้ WebSocket ผ่าน ThingsBoard API แทน?"*
+*(แนวทางตอบ: เรื่องความปลอดภัยและการจัดการสิทธิ์ ผู้ใช้งานเว็บไม่ควรได้รับสิทธิ์เข้าถึง MQTT Broker โดยตรง แต่ควรผ่านการพิสูจน์ตัวตนด้วย JWT Token ของระบบ BaaS)*
+
+ต้องการให้จัดเตรียมสไลด์โครงร่างสรุป (Markdown Presentation Outline) สำหรับฉายขึ้นจอระหว่างบรรยายส่วนนี้ด้วยไหม?

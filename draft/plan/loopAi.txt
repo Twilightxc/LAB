@@ -1,0 +1,139 @@
+เนื้อหาบรรยายนี้ออกแบบมาเพื่อแทรกสอนควบคู่กับทั้งสองคาบ (สัปดาห์ที่ 1: ThingsBoard และ สัปดาห์ที่ 3: Edge Impulse) 
+โดยใช้กรอบแนวคิดวิศวกรรมการควบคุมลูปของตัวแทนอัจฉริยะ (Loop Engineering in AI) 
+เพื่อเปลี่ยนบทบาทของผู้เรียนจากการพิมพ์ Prompt รายรอบแบบเดิม สู่การเป็น **"สถาปนิกผู้ออกแบบและผู้ตรวจสอบระบบลูป (Loop Architect & Verifier)"**
+
+---
+
+### ภาพรวมแนวคิด: จาก Open-Loop สู่ Closed-Loop System
+
+```
+[ Traditional Open-Loop (Prompting) ]
+  User Prompt (P) ────────► [ LLM Generation ] ────────► Output (Y) [Unverified / High Failure Rate][cite: 1]
+
+[ Closed-Loop Engineering Architecture ]
+                       ┌────────────────────────────────────────┐
+                       ▼                                        │ Observation (Ot) / Feedback (Ft)[cite: 1]
+  Spec / Goal (S*) ──► [ Agent (Reasoning) ] ──► Action (at) ──► [ Environment / Verifier (Tools/APIs) ][cite: 1]
+                                                 (Code, Calls)    (Linters, Tests, Wokwi, ThingsBoard)[cite: 1, 4]
+
+```
+
+* **Open-Loop System (แบบเดิม):** รับคำสั่ง $P$ แล้วส่งผลลัพธ์ $Y$ ในรอบเดียว ($Y = f(P)$) ขาดกลไกตรวจสอบภายนอก 
+มีความเสี่ยงและอัตราความล้มเหลวสูงมากในงานซอฟต์แวร์ระยะยาว
+
+
+* **Closed-Loop System (Loop Engineering):** เป็นการออกแบบเครื่องจักรสภาพวะ (State Machine) 
+ครอบตัวโมเดล โดยป้อนสัญญาณตอบกลับจากสภาพแวดล้อม ($F_t$ หรือ $O_t$) วนกลับมายังกระบวนการคิด เพื่อปรับแต่งผลลัพธ์จนกว่าจะลู่เข้าสู่สถานะเป้าหมายที่ตรวจสอบได้ ($S^*$)
+
+
+
+---
+
+### เลเยอร์วิวัฒนาการ: Prompt, Context, Harness และ Loop
+
+ในการออกแบบระบบ ไม่ได้ทิ้งแนวคิดเดิม แต่เป็นการห่อหุ้มเป็นชั้น ๆ (Nested Layers):
+
+1. **Prompt Engineering:** การออกแบบข้อความอินพุตรายรอบอย่างรัดกุม
+
+
+2. **Context Engineering:** การจัดสรรสภาพแวดล้อมข้อมูลและหน่วยความจำใน Context Window
+
+
+3. **Harness Engineering:** โครงสร้างพื้นฐานแบบสถิต (Static Scaffolding) เช่น แซนด์บ็อกซ์, ชุดสิทธิ์เครื่องมือ, กฎความปลอดภัย
+
+
+4. **Loop Engineering:** การออกแบบไดนามิกลำดับการรันแบบวนรอบ (Runtime State Machine) ที่คอยสั่ง AI, ตั้งเงื่อนไขการตรวจสอบ และกำหนดกฎการหยุดทำงาน
+
+
+
+---
+
+### องค์ประกอบหลักและกฎการตัดจบ (Anatomy & Termination Rules)
+
+ทุกวงรอบของการสร้าง Loop จำเป็นต้องมีองค์ประกอบเชิงฟังก์ชันและเกณฑ์การหยุดที่รัดกุมเพื่อป้องกันข้อผิดพลาด:
+
+* **Goal ($S^*$):** สเปกหรือสถานะสุดท้ายที่ต้องตรวจสอบผลได้จริงเชิงกลไก เช่น "รันแล้วได้ Exit Code 0" แทนการสั่งกว้าง ๆ
+
+
+* **Controller:** โมเดลประมวลผล (LLM) ทำหน้าที่ตัดสินใจเลือกแอ็กชันถัดไป
+
+
+* **Actuator / Tools:** ส่วนนำโค้ดหรือการกระทำไปใช้งานจริงในระบบ (File System, APIs, Browser DOM)
+
+
+* **Deterministic Verifier:** ตัวตรวจจับที่เป็นกลางและแน่นอน เช่น Linter, Test runner, คอมไพเลอร์ หรือ Response status 
+**(ห้ามใช้โมเดลตัวเดิมตรวจงานตัวเองโดยไม่มีเกณฑ์อ้างอิง เพราะเหมือนส่งการบ้านให้ตัวเองตรวจ)**
+
+* **Strict Termination Boundaries (กฎหยุดลูปเพื่อความปลอดภัย):**
+1. *Success Exit:* เงื่อนไขสำเร็จครบถ้วน ($\lim_{t \to K} \mathcal{V}(a_t, \mathcal{O}_t) = 1$)
+
+
+2. *Hard Budget Cap:* กำหนดเพดานรอบการวนซ้ำสูงสุด ($t \ge K_{max}$) เพื่อป้องกัน Token Runaway
+
+
+3. *Deduplication Guard:* ดักจับการเกิด Error เดิมซ้ำ ๆ $\text{Hash}(\text{Error}_t) == \text{Hash}(\text{Error}_{t-1})$ 
+หากพบอาการวนลูปติดหล่ม ต้องตัดเข้าสู่กระบวนการ Escalate ให้มนุษย์เข้ามาแทรกแซงทันที
+
+
+
+
+
+---
+
+### ส่วนเชื่อมโยงสำหรับ คาบที่ 1 (ThingsBoard & Frontend Architecture)
+
+**จุดประสงค์ในการสอน:** ฝึกให้นักศึกษาทำหน้าที่เป็น **Evaluator-Critic / Human-in-the-Loop** ตรวจสอบโค้ดที่ AI สตรีมออกมา
+
+* **ประเด็นบรรยาย (Theory Injection):**
+* สถาปัตยกรรมเครือข่ายต้องการความทนทาน (Resilience) หากสั่ง AI ให้เขียนโค้ดเชื่อมต่อระบบเครือข่าย AI มักจะละเลย Edge Cases ที่ทำให้เกิดความเสียหายในระบบจริง
+
+
+* การใช้ AI เขียน WebSocket client ต้องระวังเรื่อง **Connection Flooding** และ **Resource Contamination**
+
+
+
+* **โจทย์จับผิด AI (Verification Challenge ในห้องเรียน):**
+* **Memory Leak Audit:** AI คืนค่าฟังก์ชัน Cleanup (`ws.close()`) และล้าง Event Listener หรือไม่เมื่อ component ถูกทำลาย
+
+
+* **Exponential Backoff Reconnect:** เมื่อตัดสัญญาณเครือข่าย โค้ดที่ AI สร้างมีระบบหน่วงเวลาแบบทวีคูณ ($1\text{s}, 2\text{s}, 4\text{s}, ...$) 
+หรือวนลูปยิง Reconnect รัว ๆ จนเบราว์เซอร์ค้างและถูกเซิร์ฟเวอร์แบน IP
+* **Sanitization:** ตรวจสอบว่ามีบล็อก `try...catch` ล้อมรอบ `JSON.parse()` หรือไม่ หาก ThingsBoard ส่งสตริงหรือค่า `null` กลับมา
+
+
+
+---
+
+### ส่วนเชื่อมโยงสำหรับ คาบที่ 3 (Edge AI, Embedded Integration & Active Learning)
+
+**จุดประสงค์ในการสอน:** ผสานโมเดล AIoT ฝั่ง Embedded C++ และปิดลูปสถาปัตยกรรมระดับ **Autonomous Feedback Loop (MLOps)**
+
+* **ประเด็นบรรยาย (Theory Injection):**
+* สัญญาณการประมวลผลฝั่ง Edge ทำหน้าที่เป็น **Deterministic Sensor** คอยป้อนข้อมูลเชิงลึกกลับขึ้นมายัง Controller
+
+
+* ทำความเข้าใจ **3 Loops of Product Development (Andrew Ng's Framework)**:
+
+
+1. *Agentic Coding Loop (Micro Loop):* ลูปการเขียนและแก้โค้ดเฟิร์มแวร์/หน้าเว็บร่วมกับ AI
+
+
+2. *Developer Feedback Loop (Human-in-the-Loop):* มนุษย์คอยระบุสเปก ทบทวนความปลอดภัย และปรับปรุงเกณฑ์การตัดสินใจ
+
+
+3. *External Feedback Loop (System Closed-Loop):* วงรอบที่ตัวอุปกรณ์ตรวจจับความผิดปกติหน้างาน แล้วส่งสัญญาณกลับสู่กระบวนการ Retrain โมเดล
+
+
+
+
+
+
+* **โจทย์จับผิด AI (Verification Challenge ในห้องเรียน):**
+* **Hardware Boundary Check:** 
+ตรวจสอบโค้ด C++ ที่ AI แปลงว่ามีการคำนวณขนาดของบัฟเฟอร์สัญญาณ (`signal.total_length`) เกินขนาด `EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE` หรือไม่ 
+เพื่อป้องกันปัญหา Stack/Heap Overflow บน ESP32-S3
+
+* **NaN & Type Protection:** บนหน้าเว็บที่รับค่า `anomaly_score` โค้ดของ AI มีเงื่อนไขดักจับ `isNaN()` หรือไม่ 
+เพื่อป้องกันไม่ให้แถบ UI แตกเมื่อค่าพุ่งเกินช่วง $0.0 - 1.0$
+* **Active Learning Loop Simulation:** อธิบายบทบาทของปุ่ม "Flag for Retrain" ว่าเป็นตัวเก็บ State 
+สำหรับป้อนข้อมูลผิดพลาด (False Positives) กลับเข้า Data Store ของ Edge Impulse เพื่อสร้างรอบการปรับปรุงคุณภาพโมเดลแบบต่อเนื่อง

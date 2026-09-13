@@ -124,6 +124,7 @@ The loop ends when:
 - All requirements in `1requirment.md` are satisfied
 - The human explicitly says to stop
 - A blocking error cannot be resolved after 3 fix attempts
+- **Deduplication Guard:** If the **same error with the same root cause** repeats in 2 consecutive fix attempts, **stop immediately and escalate to the human** — do not keep retrying the same failing approach. Try a fundamentally different strategy or ask for guidance
 
 ---
 
