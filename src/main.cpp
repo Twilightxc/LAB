@@ -7,14 +7,14 @@
 // --- Configuration ---
 char WIFI_SSID[] = "Wokwi-GUEST";
 char WIFI_PASSWORD[] = "";      
-const char* token = ""; // <-- Replace with your Access Token
+const char* token = "vdKWjfAm1V16yn3ykFdh"; // <-- Replace with your Access Token
 const char* thingsboard_server = "demo.thingsboard.io"; 
 // if DNS fail use 104.196.24.70  | thingsboard.cloud[44.194.165.190] | eu.thingsboard.cloud[3.69.110.78]
 // or try ping <demo.thingsboard.io> to get IP address from CMD
 
 const int port = 1883;
 
-const char STUDENT_ID[]      = "";   // <-- Replace with your Student ID
+const char STUDENT_ID[]      = "6750091";   // <-- Replace with your Student ID
 const char FIRMWARE_VERSION[] = "1.0"; 
 
 // --- Hardware Pins (from diagram.json — ESP32-S3) ---
@@ -122,17 +122,17 @@ void loop() {
 //  MPU6050 Functions
 // ====================================================================
 
-// Initialize I2C on diagram-specified pins and calibrate all MPU6050 sensors.
+// Initialize I2C on diagram-specified pins and set up all MPU6050 sensors.
 void setupMPU() {
   Wire.begin(pinSDA, pinSCL);
+  Wire.setTimeOut(1000);  // guard against a wedged I2C bus (avoids interrupt-WDT panic)
 
   for (int i = 0; i < NUM_MPUS; i++) {
     pinMode(AD0pin[i], OUTPUT);
     digitalWrite(AD0pin[i], HIGH);  // default HIGH → address 0x69 (deselected)
   }
 
-  Serial.println(F("Initializing MPU-6050 sensors and calculating offsets. Do not move the sensor."));
-  Serial.println(F("Attention: Calculating the offset is good in real life, but it is better to skip this function in Wokwi."));
+  Serial.println(F("Initializing MPU-6050 sensors. Do not move the sensor."));
   delay(500);
 
   for (int i = 0; i < NUM_MPUS; i++) {
@@ -147,7 +147,9 @@ void setupMPU() {
       Serial.print(F(" (no error)"));
     Serial.println();
 
-    mpu[i].calcOffsets(true, true);  // gyro and accelerometer
+    // calcOffsets() runs a tight 500-iteration I2C polling loop that hangs
+    // Wokwi's simulated I2C bus and trips the interrupt watchdog — skip it
+    // here; offsets default to 0 (set in the MPU6050 constructor).
   }
 
   Serial.println(F("MPU-6050 initialization done"));

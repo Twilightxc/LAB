@@ -14,8 +14,65 @@
 ### Dashboard Page
 
 - Single `Logout` button → navigates back to Login
-- Telemetry graph displaying real-time data from ThingsBoard
-- Value card showing live telemetry readings
+
+#### Lab 1: Raw Telemetry Streaming — "Raw Signal Diagnostics" Dashboard
+
+> **Concept:** A diagnostics-style dashboard focusing on the speed of numerical updates and physical waveforms.
+
+**MQTT Telemetry Payload (from device):**
+
+```json
+{
+  "mpu_temp": 23.97647,
+  "acc_x": 0, "acc_y": 0, "acc_z": 1,
+  "gyro_x": 0, "gyro_y": 0, "gyro_z": 0,
+  "angle_x": 0, "angle_y": 0, "angle_z": 0
+}
+```
+
+**Serial monitor format:**
+```
+0:T=24,ACC=0.00,0.00,1.00,GYRO=0,0,0,ACC ANGLE=0,0,ANGLE=0,0,0
+```
+
+---
+
+##### 1. Multi-axis Real-time Line Chart (Live Signal Waveform)
+
+- Displays **overlaid line graphs** for 3-axis acceleration ($X$, $Y$, $Z$)
+- Moves in **real-time** with a **rolling window** of the last **5–10 seconds**
+- Visualizes signal noise/fluctuations when the sensor moves
+- Each axis uses a **distinct color** (e.g., Red = X, Green = Y, Blue = Z)
+- Axis labels with units ($\text{m/s}^2$)
+
+##### 2. Raw Value Numeric Tiles (Live Numeric Display Boxes)
+
+- A table/grid of tiles displaying **current numerical values**
+- Separated by sensor type and axis:
+
+| Sensor        | X     | Y     | Z     | Unit            |
+| ------------- | ----- | ----- | ----- | --------------- |
+| Acceleration  | acc_x | acc_y | acc_z | $\text{m/s}^2$  |
+| Gyroscope     | gyro_x| gyro_y| gyro_z| $\text{rad/s}$  |
+| Angle         | angle_x| angle_y| angle_z| $\text{°}$   |
+| Temperature   | —     | —     | mpu_temp | $\text{°C}$  |
+
+- Values update in **real-time** as telemetry arrives
+
+##### 3. Sensor Tilt Indicator (2D Tilt Gauge)
+
+- A small **square box** containing a **dot**
+- The dot moves along the **X and Y axes** reflecting sensor tilt
+- Maps `acc_x` and `acc_y` values to dot position
+- Allows learners to **visualize the sensor's tilt** interactively
+- Includes crosshair/grid lines for center reference
+
+##### 4. LED On/Off Control Switch
+
+- A toggle switch (On/Off) to **send RPC commands** to the device
+- Toggles an **LED** on the connected hardware
+- Sends command via ThingsBoard **REST API (RPC)**
+- Visual feedback showing current LED state
 
 ---
 
