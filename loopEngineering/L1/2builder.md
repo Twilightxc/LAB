@@ -23,13 +23,13 @@ Execute these steps **in order** every time you are triggered:
 ### Phase 1: Read
 
 1. Read `Role.md` — understand your **role, skills, and constraints**
-2. Read `L1/1requirment.md` — understand **what** to build
+2. Read `L1/1requirment.md` and `L1/3api-contract.md` — understand **what** to build and the **API contract**
 
 ### Phase 2: Think
 
-3. Read `DECISION.md` — check prior design decisions
-4. Read `TASK.md` — check current task status
-5. Read `SESSION.md` — check what was done previously
+3. Read `DECISION.md` — check prior design decisions (create empty if missing)
+4. Read `TASK.md` — check current task status (create empty if missing)
+5. Read `SESSION.md` and `CLARIFICATIONS.md` — check prior history and resolved clarifications (create missing files as empty)
 6. Summarize your understanding back to the human
 
 ### Phase 2.5: Clarification Gate
@@ -57,13 +57,13 @@ Execute these steps **in order** every time you are triggered:
 
 15. Execute **one task at a time** from `TASK.md`
 16. After completing each task, mark it `[x]` in `TASK.md`
-17. After each task, state how to verify (e.g. open in browser, check console)
+17. After each task, state the **verification method** for the human (e.g. "open `login.html` in browser and submit test credentials")
 
 ### Phase 5: Verify
 
-18. Check: Does the output match `1requirment.md`?
-19. Check: Does the code run without errors?
-20. Check: Are there any security risks?
+18. Check: Does the output match `1requirment.md`? (compare feature-by-feature)
+19. Check: Does the code have syntax errors? (review `.js`, `.css`, `.html` for valid syntax)
+20. Check: Are there security risks? (XSS vectors, exposed tokens, missing input validation)
 21. If any check fails → use the error as feedback → fix → repeat
 
 ### Phase 6: Log
@@ -74,23 +74,26 @@ Execute these steps **in order** every time you are triggered:
 
 ## Input Context (Read)
 
-| File                 | Purpose                |
-| -------------------- | ---------------------- |
-| `Role.md`            | Role & skills          |
-| `L1/1requirment.md`  | Requirements & scope   |
-| `DECISION.md`        | Prior design decisions |
-| `TASK.md`            | Current task list      |
-| `SESSION.md`         | Session history        |
+| File                  | Purpose                          |
+| --------------------- | -------------------------------- |
+| `Role.md`             | Role & skills                    |
+| `L1/1requirment.md`   | Requirements & scope             |
+| `L1/3api-contract.md` | API contract & schemas           |
+| `DECISION.md`         | Prior design decisions           |
+| `TASK.md`             | Current task list                |
+| `SESSION.md`          | Session history                  |
+| `CLARIFICATIONS.md`   | Requirement clarifications & Q&A |
 
 ---
 
 ## Output (Write / Update)
 
-| File                 | What to update                        |
-| -------------------- | ------------------------------------- |
-| `DECISION.md`        | New design decisions made this loop   |
-| `TASK.md`            | Mark tasks done, add new tasks found  |
-| `SESSION.md`         | Log what was done, changed, and why   |
+| File                 | What to update                            |
+| -------------------- | ----------------------------------------- |
+| `DECISION.md`        | New design decisions made this loop       |
+| `TASK.md`            | Mark tasks done, add new tasks found      |
+| `SESSION.md`         | Log what was done, changed, and why       |
+| `CLARIFICATIONS.md`  | Record resolved clarifications from human |
 
 ---
 
@@ -123,18 +126,17 @@ The loop ends when:
 - All tasks in `TASK.md` are marked complete
 - All requirements in `1requirment.md` are satisfied
 - The human explicitly says to stop
-- A blocking error cannot be resolved after 3 fix attempts
-- **Deduplication Guard:** If the **same error with the same root cause** repeats in 2 consecutive fix attempts, **stop immediately and escalate to the human** — do not keep retrying the same failing approach. Try a fundamentally different strategy or ask for guidance
+- **Error Budget:** A blocking error cannot be resolved after **3 total fix attempts**. If the **same error** (matched by error message or root cause) appears in **2 of those 3 attempts**, stop immediately — the approach is fundamentally wrong. In all cases: escalate to the human with a summary of what was tried and why it failed
 
 ---
 
 ## Rules
 
-- Do **one task** at a time — do not batch unrelated changes
-- If unsure, **ask before acting**
+- Do **one task** at a time — a task is a single entry in `TASK.md`. One task may touch multiple related files (e.g. `login.html` + `login.css`), but do not combine tasks from different features
+- If unsure, follow the **Clarification Gate** (Phase 2.5) protocol
 - If there is an error, use the **error message as feedback** and fix in the next loop
 - After finishing, **summarize** all files created or modified
-- If there is a **security risk**, flag it immediately
+- If there is a **security risk**, follow the **Human Checkpoint** protocol and document in `DECISION.md`
 
 ---
 
