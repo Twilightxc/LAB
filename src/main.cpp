@@ -7,14 +7,14 @@
 // --- Configuration ---
 char WIFI_SSID[] = "Wokwi-GUEST";
 char WIFI_PASSWORD[] = "";      
-const char* token = "vdKWjfAm1V16yn3ykFdh"; // <-- Replace with your Access Token
+const char* token = ""; // <-- Replace with your Access Token
 const char* thingsboard_server = "demo.thingsboard.io"; 
 // if DNS fail use 104.196.24.70  | thingsboard.cloud[44.194.165.190] | eu.thingsboard.cloud[3.69.110.78]
 // or try ping <demo.thingsboard.io> to get IP address from CMD
 
 const int port = 1883;
 
-const char STUDENT_ID[]      = "6750091";   // <-- Replace with your Student ID
+const char STUDENT_ID[]      = "";   // <-- Replace with your Student ID
 const char FIRMWARE_VERSION[] = "1.0"; 
 
 // --- Hardware Pins (from diagram.json — ESP32-S3) ---
